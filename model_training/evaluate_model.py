@@ -9,22 +9,28 @@ from tqdm import tqdm
 import editdistance
 import argparse
 
-from rnn_model import GRUDecoder
+from utils import load_model, DATA_BASE_PATH
 from evaluate_model_helpers import *
 
 # argument parser for command line arguments
-parser = argparse.ArgumentParser(description='Evaluate a pretrained RNN model on the copy task dataset.')
-parser.add_argument('--model_path', type=str, default='../data/t15_pretrained_rnn_baseline',
+
+
+
+parser = argparse.ArgumentParser(description='Evaluate a pretrained model on the copy task dataset.')
+parser.add_argument('--model-path', type=str, required=True,
                     help='Path to the pretrained model directory (relative to the current working directory).')
-parser.add_argument('--data_dir', type=str, default='../data/hdf5_data_final',
+parser.add_argument('--data-dir', type=str, default=str(DATA_BASE_PATH / 't15_copyTask_neuralData/hdf5_data_final/'),
                     help='Path to the dataset directory (relative to the current working directory).')
-parser.add_argument('--eval_type', type=str, default='test', choices=['val', 'test'],
+parser.add_argument('--eval-type', type=str, default='val', choices=['val', 'test'],
                     help='Evaluation type: "val" for validation set, "test" for test set. '
                          'If "test", ground truth is not available.')
-parser.add_argument('--csv_path', type=str, default='../data/t15_copyTaskData_description.csv',
+parser.add_argument('--csv-path', type=str, default='../data/t15_copyTaskData_description.csv',
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
-parser.add_argument('--gpu_number', type=int, default=1,
-                    help='GPU number to use for RNN model inference. Set to -1 to use CPU.')
+parser.add_argument('--gpu-number', type=int, default=0,
+                    help='GPU number to use for model inference. Set to -1 to use CPU.')
+parser.add_argument('--model-architecture', type=str, default='rnn', choices=['rnn', 'convformer', 'transformer'],
+                    help='Model architecture to use for evaluation.')
+
 args = parser.parse_args()
 
 # paths to model and data directories
@@ -56,24 +62,16 @@ else:
     device = torch.device('cpu')
 
 # define model
-model = GRUDecoder(
-    neural_dim = model_args['model']['n_input_features'],
-    n_units = model_args['model']['n_units'], 
-    n_days = len(model_args['dataset']['sessions']),
-    n_classes = model_args['dataset']['n_classes'],
-    rnn_dropout = model_args['model']['rnn_dropout'],
-    input_dropout = model_args['model']['input_network']['input_layer_dropout'],
-    n_layers = model_args['model']['n_layers'],
-    patch_size = model_args['model']['patch_size'],
-    patch_stride = model_args['model']['patch_stride'],
-)
+
+model = torch.compile(load_model(model_args, model_architecture=args.model_architecture))
 
 # load model weights
 checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False)
 # rename keys to not start with "module." (happens if model was saved with DataParallel)
-for key in list(checkpoint['model_state_dict'].keys()):
-    checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
-    checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
+if args.model_architecture == "rnn":
+    for key in list(checkpoint['model_state_dict'].keys()):
+        checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
+        checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
 model.load_state_dict(checkpoint['model_state_dict'])  
 
 # add model to device

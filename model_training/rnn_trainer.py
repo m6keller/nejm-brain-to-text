@@ -1,3 +1,4 @@
+from typing import Literal
 import torch 
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
@@ -22,7 +23,7 @@ torch.set_float32_matmul_precision('high') # makes float32 matmuls faster on som
 torch.backends.cudnn.deterministic = True # makes training more reproducible
 torch._dynamo.config.cache_size_limit = 64
 
-from rnn_model import GRUDecoder
+from utils import load_model
 
 class BrainToTextDecoder_Trainer:
     """
@@ -31,7 +32,7 @@ class BrainToTextDecoder_Trainer:
     Written by Nick Card and Zachery Fogg with reference to Stanford NPTL's decoding function
     """
 
-    def __init__(self, args):
+    def __init__(self, args, model_architecture = "rnn"):
         '''
         args : dictionary of training arguments
         '''
@@ -116,21 +117,11 @@ class BrainToTextDecoder_Trainer:
             random.seed(self.args['seed'])
             torch.manual_seed(self.args['seed'])
 
-        # Initialize the model 
-        self.model = GRUDecoder(
-            neural_dim = self.args['model']['n_input_features'],
-            n_units = self.args['model']['n_units'],
-            n_days = len(self.args['dataset']['sessions']),
-            n_classes  = self.args['dataset']['n_classes'],
-            rnn_dropout = self.args['model']['rnn_dropout'], 
-            input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
-            n_layers = self.args['model']['n_layers'],
-            patch_size = self.args['model']['patch_size'],
-            patch_stride = self.args['model']['patch_stride'],
-        )
 
-        # Call torch.compile to speed up training
+        
         self.logger.info("Using torch.compile")
+
+        self.model = load_model(self.args, model_architecture=model_architecture)
         self.model = torch.compile(self.model)
 
         self.logger.info(f"Initialized RNN decoding model")
