@@ -1,6 +1,11 @@
+import json
+import os
 from os import PathLike
+
 from omegaconf import OmegaConf
-from rnn_trainer import BrainToTextDecoder_Trainer, ModelArchitecture
+from rnn_trainer import BrainToTextDecoder_Trainer
+from utils import ModelArchitecture
+
 
     
 def main(model_architecture: ModelArchitecture = "rnn", config: PathLike = "rnn_args.yaml"):
@@ -8,6 +13,8 @@ def main(model_architecture: ModelArchitecture = "rnn", config: PathLike = "rnn_
     trainer = BrainToTextDecoder_Trainer(args, model_architecture=model_architecture)
     metrics = trainer.train()
     print("Training completed. Final metrics:", metrics)
+    json.dump(metrics, open(os.path.join(args.output_dir, "final_training_metrics.json"), "w"))
+
 
 
 if __name__ == "__main__":
