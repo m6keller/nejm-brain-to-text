@@ -28,7 +28,7 @@ parser.add_argument('--csv-path', type=str, default='../data/t15_copyTaskData_de
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
 parser.add_argument('--gpu-number', type=int, default=0,
                     help='GPU number to use for model inference. Set to -1 to use CPU.')
-parser.add_argument('--model-architecture', type=str, default='rnn', choices=['rnn', 'convformer', 'transformer'],
+parser.add_argument('--model-architecture', type=str, default='rnn', choices=['rnn', 'convformer', 'mamba'],
                     help='Model architecture to use for evaluation.')
 
 args = parser.parse_args()
