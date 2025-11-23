@@ -63,8 +63,8 @@ else:
 
 # define model
 
-model = torch.compile(load_model(model_args, model_architecture=args.model_architecture))
-
+# model = torch.compile(load_model(model_args, model_architecture=args.model_architecture))
+model = load_model(model_args, model_architecture=args.model_architecture)
 # load model weights
 checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False)
 # rename keys to not start with "module." (happens if model was saved with DataParallel)
@@ -72,6 +72,7 @@ if args.model_architecture == "rnn":
     for key in list(checkpoint['model_state_dict'].keys()):
         checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
         checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
+
 model.load_state_dict(checkpoint['model_state_dict'])  
 
 # add model to device

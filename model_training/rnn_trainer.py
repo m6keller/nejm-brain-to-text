@@ -32,7 +32,7 @@ class BrainToTextDecoder_Trainer:
     Written by Nick Card and Zachery Fogg with reference to Stanford NPTL's decoding function
     """
 
-    def __init__(self, args, model_architecture = "rnn"):
+    def __init__(self, args, model_architecture = "rnn", compile: bool = False):
         '''
         args : dictionary of training arguments
         '''
@@ -119,10 +119,13 @@ class BrainToTextDecoder_Trainer:
 
 
         
-        self.logger.info("Using torch.compile")
 
         self.model = load_model(self.args, model_architecture=model_architecture)
-        self.model = torch.compile(self.model)
+        if compile:
+            self.logger.info("Using torch.compile")
+            self.model = torch.compile(self.model)
+        else:
+            self.logger.info("Not using torch.compile")
 
         self.logger.info(f"Initialized RNN decoding model")
 
