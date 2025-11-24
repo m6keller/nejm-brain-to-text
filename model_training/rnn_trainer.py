@@ -61,8 +61,8 @@ class BrainToTextDecoder_Trainer:
             os.makedirs(self.args['output_dir'], exist_ok=False)
 
         # Create checkpoint directory
-        if args['save_best_checkpoint'] or args['save_all_val_steps'] or args['save_final_model']: 
-            os.makedirs(self.args['checkpoint_dir'], exist_ok=False)
+        # if args['save_best_checkpoint'] or args['save_all_val_steps'] or args['save_final_model']: 
+        os.makedirs(self.args['checkpoint_dir'], exist_ok=False)
 
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -563,7 +563,7 @@ class BrainToTextDecoder_Trainer:
                         f'time: {train_step_duration:.3f}')
 
             # Incrementally run a test step
-            if i % self.args['batches_per_val_step'] == 0 or i == ((self.args['num_training_batches'] - 1)):
+            if (i != 0) and (i % self.args['batches_per_val_step'] == 0 or i == ((self.args['num_training_batches'] - 1))):
                 self.logger.info(f"Running test after training batch: {i}")
                 
                 # Calculate metrics on val data

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from transformers import Wav2Vec2ConformerConfig, Wav2Vec2ConformerModel
 
-
 class ConvFormerDecoder(nn.Module):
     """
     Defines the ConvFormer (Conformer) Decoder.

@@ -3,7 +3,7 @@ model:
   n_units: 512 # number of units per GRU layer
   rnn_dropout: 0.4 # dropout rate for the GRU layers
   rnn_trainable: true # whether the GRU layers are trainable
-  n_layers: 8 # number of GRU layers
+  n_layers: 10 # number of GRU layers
   patch_size: 14 # size of the input patches (14 time steps)
   patch_stride: 4 # stride for the input patches (4 time steps)
 
@@ -17,8 +17,8 @@ model:
 mode: train
 use_amp: true # whether to use automatic mixed precision (AMP) for training
 
-output_dir: trained_models/wider_deeper_convformer # directory to save the trained model and logs
-checkpoint_dir: trained_models/wider_deeper_convformer/checkpoint # directory to save checkpoints during training
+output_dir: trained_models/even_deeper_same_depth_convformer # directory to save the trained model and logs
+checkpoint_dir: trained_models/even_deeper_same_depth_convformer/checkpoint # directory to save checkpoints during training
 init_from_checkpoint: false # whether to initialize the model from a checkpoint
 init_checkpoint_path: None # path to the checkpoint to initialize the model from, if any
 save_best_checkpoint: true # whether to save the best checkpoint based on validation metrics
