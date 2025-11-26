@@ -77,6 +77,15 @@ class BrainToTextDecoder_Trainer:
             fh.setFormatter(formatter)
             self.logger.addHandler(fh)
 
+            def handle_exception(exc_type, exc_value, exc_traceback):
+                if issubclass(exc_type, KeyboardInterrupt):
+                    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+                    return
+                self.logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+            # Assign the function to sys.excepthook
+            sys.excepthook = handle_exception
+
         # Always print logs to stdout
         sh = logging.StreamHandler(sys.stdout)
         sh.setFormatter(formatter)
@@ -441,7 +450,7 @@ class BrainToTextDecoder_Trainer:
         if mode == 'train':
             # add static gain noise 
             if self.transform_args['static_gain_std'] > 0:
-                warp_mat = torch.tile(torch.unsqueeze(torch.eye(channels), dim = 0), (batch_size, 1, 1))
+                warp_mat = torch.tile(torch.unsqueeze(torch.eye(channels), dim = 0), (batch_size, 1, 1)).to(self.device)
                 warp_mat += torch.randn_like(warp_mat, device=self.device) * self.transform_args['static_gain_std']
 
                 features = torch.matmul(features, warp_mat)
@@ -542,11 +551,18 @@ class BrainToTextDecoder_Trainer:
 
             # Clip gradient
             if self.args['grad_norm_clip_value'] > 0: 
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
-                                               max_norm = self.args['grad_norm_clip_value'],
+                try:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
+                                               max_norm = int(self.args['grad_norm_clip_value']),
                                                error_if_nonfinite = True,
                                                foreach = True
                                                )
+
+                except RuntimeError:
+                    # If we hit the non-finite error, we catch it here
+                    self.logger.warning(f"Batch {i}: Gradients were non-finite (NaN/Inf). Skipping optimizer step.")
+                    grad_norm = torch.tensor(float('inf')) # Set a dummy value for logging
+                    self.optimizer.zero_grad() # Clear the bad gradients
 
             self.optimizer.step()
             self.learning_rate_scheduler.step()

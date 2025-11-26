@@ -23,7 +23,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train Brain-to-Text Decoder Model")
-    parser.add_argument("--model-architecture", type=str, choices=["rnn", "convformer", "mamba"], default="rnn",
+    parser.add_argument("--model-architecture", type=str, choices=["rnn", "convformer", "mamba", "relative-convformer"], default="rnn",
                         help="Model architecture to use: 'rnn', 'convformer', or 'mamba'")
     parser.add_argument("--config", type=str, required=True,
                         help="Path to the configuration YAML file")

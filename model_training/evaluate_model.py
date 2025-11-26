@@ -66,7 +66,7 @@ else:
 # model = torch.compile(load_model(model_args, model_architecture=args.model_architecture))
 model = load_model(model_args, model_architecture=args.model_architecture)
 # load model weights
-checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False)
+checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False, map_location=device)
 # rename keys to not start with "module." (happens if model was saved with DataParallel)
 if args.model_architecture == "rnn":
     for key in list(checkpoint['model_state_dict'].keys()):
