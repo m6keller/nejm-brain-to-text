@@ -4,7 +4,7 @@ import numpy as np
 
 from omegaconf import OmegaConf
 from rnn_trainer import BrainToTextDecoder_Trainer
-from utils import ModelArchitecture
+from utils import ModelArchitecture, MODEL_CHOICES
 
     
 def main(model_architecture: ModelArchitecture = "rnn", config: PathLike = "rnn_args.yaml", compile: bool = False):
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train Brain-to-Text Decoder Model")
-    parser.add_argument("--model-architecture", type=str, choices=["rnn", "convformer", "mamba", "relative-convformer"], default="rnn",
+    parser.add_argument("--model-architecture", type=str, choices=MODEL_CHOICES, default="rnn",
                         help="Model architecture to use: 'rnn', 'convformer', or 'mamba'")
     parser.add_argument("--config", type=str, required=True,
                         help="Path to the configuration YAML file")

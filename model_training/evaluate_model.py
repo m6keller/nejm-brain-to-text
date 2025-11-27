@@ -9,12 +9,10 @@ from tqdm import tqdm
 import editdistance
 import argparse
 
-from utils import load_model, DATA_BASE_PATH
+from utils import load_model, DATA_BASE_PATH, MODEL_CHOICES
 from evaluate_model_helpers import *
 
 # argument parser for command line arguments
-
-
 
 parser = argparse.ArgumentParser(description='Evaluate a pretrained model on the copy task dataset.')
 parser.add_argument('--model-path', type=str, required=True,
@@ -28,7 +26,7 @@ parser.add_argument('--csv-path', type=str, default='../data/t15_copyTaskData_de
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
 parser.add_argument('--gpu-number', type=int, default=0,
                     help='GPU number to use for model inference. Set to -1 to use CPU.')
-parser.add_argument('--model-architecture', type=str, default='rnn', choices=['rnn', 'convformer', 'mamba'],
+parser.add_argument('--model-architecture', type=str, default='rnn', choices=MODEL_CHOICES,
                     help='Model architecture to use for evaluation.')
 
 args = parser.parse_args()

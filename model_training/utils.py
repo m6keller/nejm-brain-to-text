@@ -10,6 +10,8 @@ from relative_convformer_model import RelativeConvFormer
 
 DATA_BASE_PATH = Path('/home/mkeller/data/brain-to-text/')
 
+MODEL_CHOICES = ["rnn", "convformer", "mamba", "relative-convformer"]
+
 ModelArchitecture = Literal["rnn", "convformer", "mamba", "relative-convformer"]
 
 def load_model(args, model_architecture: ModelArchitecture) -> torch.nn.Module:
@@ -56,6 +58,12 @@ def load_model(args, model_architecture: ModelArchitecture) -> torch.nn.Module:
                 num_classes = args['dataset']['n_classes'],
                 n_days = len(args['dataset']['sessions']),
                 patch_size = args['model']['patch_size'],
+                n_layers= args['model']['n_layers'],
+                patch_stride= args['model']['patch_stride'],
+                input_dropout= args['model']['input_network']['input_layer_dropout'],
+                n_attention_heads= args['model']['n_attention_heads'],
+                intermediate_size= args['model']['intermediate_size'],
+                hidden_size= args['model']['n_units'],
             )
         case _:
             raise ValueError(f"Invalid model architecture: {model_architecture}")
