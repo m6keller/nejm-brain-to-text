@@ -2,12 +2,10 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
-import optuna
-from tsaug import TimeWarp, Crop, AddNoise, Convolve, Drift, Dropout, Pool, Quantize, Resize
+from tsaug import TimeWarp, AddNoise, Convolve, Drift, Pool, Quantize
 from tsaug.visualization import plot
 from scipy.interpolate import CubicSpline
 from scipy.stats import special_ortho_group
-import sklearn
 
 def gauss_smooth(inputs, device, smooth_kernel_std=2, smooth_kernel_size=100,  padding='same'):
     """
