@@ -74,7 +74,7 @@ class RelativeConvFormer(nn.Module):
             for param in self.backbone.parameters():
                 param.requires_grad = False
 
-    def forward(self, x, day_idxs, attention_mask=None):
+    def forward(self, x, day_idx, states=None, attention_mask=None, return_state=False):
         """
         neural_data: (Batch, Time, Channels)
         day_idxs: List or Tensor of shape (Batch,) indicating which day each sample belongs to
@@ -86,12 +86,12 @@ class RelativeConvFormer(nn.Module):
 
         # --- A. Apply Day-Specific Transformation ---
         # 1. Gather weights (Batch, Channels, Channels)
-        batch_day_weights = torch.stack([self.day_weights[i] for i in day_idxs], dim=0)
+        batch_day_weights = torch.stack([self.day_weights[i] for i in day_idx], dim=0)
         
         # 2. Gather biases (Batch, 1, Channels)
         # REMOVED the .unsqueeze(1) that was causing the 4D crash. 
         # Stacking (1, C) already results in (B, 1, C), which is correct.
-        batch_day_biases = torch.stack([self.day_biases[i] for i in day_idxs], dim=0)
+        batch_day_biases = torch.stack([self.day_biases[i] for i in day_idx], dim=0)
         
         # 3. Apply linear transformation: xW + b
         # einsum 'btd' (batch, time, dim) * 'bdk' (batch, dim, output_dim) -> 'btk'
@@ -132,4 +132,7 @@ class RelativeConvFormer(nn.Module):
         # --- D. Output ---
         logits = self.lm_head(outputs.last_hidden_state)
         
+        if return_state:
+            return logits, None        
+
         return logits

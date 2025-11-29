@@ -6,13 +6,14 @@ from rnn_model import GRUDecoder
 from convformer_model import ConvFormerDecoder
 from mamba_model import MambaDecoder
 from relative_convformer_model import RelativeConvFormer
+from bidirectional_gru_model import BidirectionalGRUDecoder
 
 
 DATA_BASE_PATH = Path('/home/mkeller/data/brain-to-text/')
 
-MODEL_CHOICES = ["rnn", "convformer", "mamba", "relative-convformer"]
+MODEL_CHOICES = ["rnn", "convformer", "mamba", "relative-convformer", "bigru"]
 
-ModelArchitecture = Literal["rnn", "convformer", "mamba", "relative-convformer"]
+ModelArchitecture = Literal["rnn", "convformer", "mamba", "relative-convformer", "bigru"]
 
 def load_model(args, model_architecture: ModelArchitecture) -> torch.nn.Module:
     match model_architecture:
@@ -64,6 +65,18 @@ def load_model(args, model_architecture: ModelArchitecture) -> torch.nn.Module:
                 n_attention_heads= args['model']['n_attention_heads'],
                 intermediate_size= args['model']['intermediate_size'],
                 hidden_size= args['model']['n_units'],
+            )
+        case "bigru":
+            return BidirectionalGRUDecoder(
+                neuraldim = args['model']['n_input_features'],
+                nunits = args['model']['n_units'],
+                ndays = len(args['dataset']['sessions']),
+                nclasses  = args['dataset']['n_classes'],
+                rnndropout = args['model']['rnn_dropout'],
+                inputdropout = args['model']['input_network']['input_layer_dropout'],
+                nlayers = args['model']['n_layers'],
+                patchsize = args['model']['patch_size'],
+                patchstride = args['model']['patch_stride'],
             )
         case _:
             raise ValueError(f"Invalid model architecture: {model_architecture}")

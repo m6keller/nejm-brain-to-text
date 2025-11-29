@@ -551,18 +551,11 @@ class BrainToTextDecoder_Trainer:
 
             # Clip gradient
             if self.args['grad_norm_clip_value'] > 0: 
-                try:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
-                                               max_norm = int(self.args['grad_norm_clip_value']),
-                                               error_if_nonfinite = True,
-                                               foreach = True
-                                               )
-
-                except RuntimeError:
-                    # If we hit the non-finite error, we catch it here
-                    self.logger.warning(f"Batch {i}: Gradients were non-finite (NaN/Inf). Skipping optimizer step.")
-                    grad_norm = torch.tensor(float('inf')) # Set a dummy value for logging
-                    self.optimizer.zero_grad() # Clear the bad gradients
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
+                                            max_norm = int(self.args['grad_norm_clip_value']),
+                                            error_if_nonfinite = True,
+                                            foreach = True
+                                            )
 
             self.optimizer.step()
             self.learning_rate_scheduler.step()
