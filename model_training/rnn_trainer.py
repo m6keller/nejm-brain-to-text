@@ -11,12 +11,19 @@ import logging
 import sys
 import json
 import pickle
+import optuna
 
 from dataset import BrainToTextDataset, train_test_split_indicies
+from alt_models import TransformerDecoder, TCNDecoder
+from alt_models_advanced import TCRNDecoder, EEGConvTransformerDecoder
 from data_augmentations import gauss_smooth
+
 
 import torchaudio.functional as F # for edit distance
 from omegaconf import OmegaConf
+
+from rnn_variants import LSTMDecoder, BidirectionalGRUDecoder, freeze_layers
+# from rnn_model_optuna import RNNOptunaModel, ModelConfig, optuna_objective
 
 torch.set_float32_matmul_precision('high') # makes float32 matmuls faster on some GPUs
 torch.backends.cudnn.deterministic = True # makes training more reproducible
@@ -116,18 +123,109 @@ class BrainToTextDecoder_Trainer:
             random.seed(self.args['seed'])
             torch.manual_seed(self.args['seed'])
 
-        # Initialize the model 
-        self.model = GRUDecoder(
-            neural_dim = self.args['model']['n_input_features'],
-            n_units = self.args['model']['n_units'],
-            n_days = len(self.args['dataset']['sessions']),
-            n_classes  = self.args['dataset']['n_classes'],
-            rnn_dropout = self.args['model']['rnn_dropout'], 
-            input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
-            n_layers = self.args['model']['n_layers'],
-            patch_size = self.args['model']['patch_size'],
-            patch_stride = self.args['model']['patch_stride'],
-        )
+        model_conf = self.args['model']
+        dataset_conf = self.args['dataset']
+
+        model_type = model_conf.get('model_type', 'baseline')
+
+        if model_type == 'lstm':
+            self.model = LSTMDecoder(
+                model_conf['n_input_features'],
+                model_conf['n_units'],
+                len(dataset_conf['sessions']),
+                dataset_conf['n_classes'],
+                rnndropout=model_conf['rnn_dropout'],
+                inputdropout=model_conf['input_network']['input_layer_dropout'],
+                nlayers=model_conf['n_layers'],
+                patchsize=model_conf['patch_size'],
+                patchstride=model_conf['patch_stride']
+            )
+        elif model_type == 'bigru':
+            self.model = BidirectionalGRUDecoder(
+                model_conf['n_input_features'],
+                model_conf['n_units'],
+                len(dataset_conf['sessions']),
+                dataset_conf['n_classes'],
+                rnndropout=model_conf['rnn_dropout'],
+                inputdropout=model_conf['input_network']['input_layer_dropout'],
+                nlayers=model_conf['n_layers'],
+                patchsize=model_conf['patch_size'],
+                patchstride=model_conf['patch_stride']
+            )
+        if model_type == 'tcn':
+            self.model = TCNDecoder(
+                neural_dim=model_conf['n_input_features'],
+                n_units=model_conf['n_units'],
+                n_days=len(dataset_conf['sessions']),
+                n_classes=dataset_conf['n_classes'],
+                rnn_dropout=model_conf['rnn_dropout'],
+                input_dropout=model_conf['input_network']['input_layer_dropout'],
+                n_layers=model_conf['n_layers'],
+                patch_size=model_conf['patch_size'],
+                patch_stride=model_conf['patch_stride'],
+                kernel_size=3,
+            )
+        elif model_type == 'transformer':
+            self.model = TransformerDecoder(
+                neural_dim=model_conf['n_input_features'],
+                n_units=model_conf['n_units'],
+                n_days=len(dataset_conf['sessions']),
+                n_classes=dataset_conf['n_classes'],
+                rnn_dropout=model_conf['rnn_dropout'],
+                input_dropout=model_conf['input_network']['input_layer_dropout'],
+                n_layers=model_conf['n_layers'],
+                patch_size=model_conf['patch_size'],
+                patch_stride=model_conf['patch_stride'],
+                n_heads=4,
+                dim_feedforward=4 * model_conf['n_units'],
+            )
+        elif model_type == 'eegconvtransformer':
+            self.model = EEGConvTransformerDecoder(
+                neural_dim=model_conf['n_input_features'],
+                n_units=model_conf['n_units'],
+                n_days=len(dataset_conf['sessions']),
+                n_classes=dataset_conf['n_classes'],
+                rnn_dropout=model_conf['rnn_dropout'],
+                input_dropout=model_conf['input_network']['input_layer_dropout'],
+                n_layers=model_conf['n_layers'],
+                patch_size=model_conf['patch_size'],
+                patch_stride=model_conf['patch_stride'],
+                n_heads=4,
+                dim_feedforward=4 * model_conf['n_units'],
+                cnn_layers=2,
+            )
+        elif model_type == 'optuna':
+            # For optuna cell type, check if key exists in args, fallback to 'gru'
+            optuna_cell_type = model_conf.get('optuna_cell_type', 'gru')
+            config = ModelConfig(
+                neuraldim=model_conf['n_input_features'],
+                nunits=model_conf['n_units'],
+                nclasses=dataset_conf['n_classes'],
+                ndays=len(dataset_conf['sessions']),
+                cell_type=optuna_cell_type,
+                nlayers=model_conf['n_layers'],
+                rnndropout=model_conf['rnn_dropout'],
+                inputdropout=model_conf['input_network']['input_layer_dropout'],
+                layernorm=True,
+                use_fc_layer=True,
+                fc_units=128,
+                fc_dropout=0.2,
+            )
+            self.model = RNNOptunaModel(config).to(self.device)
+        else:
+            # Baseline GRUDecoder from rnn_model.py
+            from rnn_model import GRUDecoder
+            self.model = GRUDecoder(
+                neural_dim=model_conf['n_input_features'],
+                n_units=model_conf['n_units'],
+                n_days=len(dataset_conf['sessions']),
+                n_classes=dataset_conf['n_classes'],
+                rnn_dropout=model_conf['rnn_dropout'],
+                input_dropout=model_conf['input_network']['input_layer_dropout'],
+                n_layers=model_conf['n_layers'],
+                patch_size=model_conf['patch_size'],
+                patch_stride=model_conf['patch_stride'],
+            )
 
         # Call torch.compile to speed up training
         self.logger.info("Using torch.compile")
@@ -448,7 +546,7 @@ class BrainToTextDecoder_Trainer:
             # add static gain noise 
             if self.transform_args['static_gain_std'] > 0:
                 warp_mat = torch.tile(torch.unsqueeze(torch.eye(channels), dim = 0), (batch_size, 1, 1))
-                warp_mat += torch.randn_like(warp_mat, device=self.device) * self.transform_args['static_gain_std']
+                warp_mat += torch.randn_like(warp_mat, device=self.device) * self.transform_args['static_gain_std'].to(self.device)
 
                 features = torch.matmul(features, warp_mat)
 

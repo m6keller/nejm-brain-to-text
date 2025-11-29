@@ -10,21 +10,28 @@ import editdistance
 import argparse
 
 from rnn_model import GRUDecoder
+from rnn_variants import LSTMDecoder, BidirectionalGRUDecoder
+from alt_models import TransformerDecoder, TCNDecoder
+from alt_models_advanced import TCRNDecoder, EEGConvTransformerDecoder
 from evaluate_model_helpers import *
 
-# argument parser for command line arguments
+DATA_BASE_PATH = '/home/mkeller/data/brain-to-text/'
+MODEL_TYPE_CHOICES = ['lstm', 'bigru', 'rnn', 'tcn', 'transformer', 'eegconvtransformer']
+
 parser = argparse.ArgumentParser(description='Evaluate a pretrained RNN model on the copy task dataset.')
 parser.add_argument('--model_path', type=str, default='../data/t15_pretrained_rnn_baseline',
                     help='Path to the pretrained model directory (relative to the current working directory).')
-parser.add_argument('--data_dir', type=str, default='../data/hdf5_data_final',
+parser.add_argument('--data-dir', type=str, default=os.path.join(DATA_BASE_PATH, 't15_copyTask_neuralData/hdf5_data_final/'),
                     help='Path to the dataset directory (relative to the current working directory).')
-parser.add_argument('--eval_type', type=str, default='test', choices=['val', 'test'],
+parser.add_argument('--eval_type', type=str, default='val', choices=['val', 'test'],
                     help='Evaluation type: "val" for validation set, "test" for test set. '
                          'If "test", ground truth is not available.')
 parser.add_argument('--csv_path', type=str, default='../data/t15_copyTaskData_description.csv',
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
 parser.add_argument('--gpu_number', type=int, default=1,
                     help='GPU number to use for RNN model inference. Set to -1 to use CPU.')
+parser.add_argument('--model_type', type=str, choices=MODEL_TYPE_CHOICES, default='bigru',
+                    help=f'Type of RNN model to use: {MODEL_TYPE_CHOICES}.')
 args = parser.parse_args()
 
 # paths to model and data directories
@@ -55,19 +62,91 @@ else:
     print('Using CPU for model inference.')
     device = torch.device('cpu')
 
-# define model
-model = GRUDecoder(
-    neural_dim = model_args['model']['n_input_features'],
-    n_units = model_args['model']['n_units'], 
-    n_days = len(model_args['dataset']['sessions']),
-    n_classes = model_args['dataset']['n_classes'],
-    rnn_dropout = model_args['model']['rnn_dropout'],
-    input_dropout = model_args['model']['input_network']['input_layer_dropout'],
-    n_layers = model_args['model']['n_layers'],
-    patch_size = model_args['model']['patch_size'],
-    patch_stride = model_args['model']['patch_stride'],
-)
 
+match args.model_type:
+
+    case 'lstm':
+        print("Loading lstm decoder...")
+        model = LSTMDecoder(
+            neuraldim = model_args['model']['n_input_features'],
+            nunits = model_args['model']['n_units'], 
+            ndays = len(model_args['dataset']['sessions']),
+            nclasses = model_args['dataset']['n_classes'],
+            rnndropout = model_args['model']['rnn_dropout'],
+            inputdropout = model_args['model']['input_network']['input_layer_dropout'],
+            nlayers = model_args['model']['n_layers'],
+            patchsize = model_args['model']['patch_size'],
+            patchstride = model_args['model']['patch_stride'],
+        )
+    case 'bigru':
+        model = BidirectionalGRUDecoder(
+            neuraldim = model_args['model']['n_input_features'],
+            nunits = model_args['model']['n_units'], 
+            ndays = len(model_args['dataset']['sessions']),
+            nclasses = model_args['dataset']['n_classes'],
+            rnndropout = model_args['model']['rnn_dropout'],
+            inputdropout = model_args['model']['input_network']['input_layer_dropout'],
+            nlayers = model_args['model']['n_layers'],
+            patchsize = model_args['model']['patch_size'],
+            patchstride = model_args['model']['patch_stride'],
+        )
+    case 'bigru':
+        model = BidirectionalGRUDecoder(
+            neuraldim = model_args['model']['n_input_features'],
+            nunits = model_args['model']['n_units'], 
+            ndays = len(model_args['dataset']['sessions']),
+            nclasses = model_args['dataset']['n_classes'],
+            rnndropout = model_args['model']['rnn_dropout'],
+            inputdropout = model_args['model']['input_network']['input_layer_dropout'],
+            nlayers = model_args['model']['n_layers'],
+            patchsize = model_args['model']['patch_size'],
+            patchstride = model_args['model']['patch_stride'],
+        )
+    case 'tcn':
+        model = TCNDecoder(
+            neural_dim=model_args['model']['n_input_features'],
+            n_units=model_args['model']['n_units'],
+            n_days=len(model_args['dataset']['sessions']),
+            n_classes=model_args['dataset']['n_classes'],
+            rnn_dropout=model_args['model']['rnn_dropout'],
+            input_dropout=model_args['model']['input_network']['input_layer_dropout'],
+            n_layers=model_args['model']['n_layers'],
+            patch_size=model_args['model']['patch_size'],
+            patch_stride=model_args['model']['patch_stride'],
+            kernel_size=3,
+        )
+    case 'transformer':
+        model = TransformerDecoder(
+            neural_dim=model_args['model']['n_input_features'],
+            n_units=model_args['model']['n_units'],
+            n_days=len(model_args['dataset']['sessions']),
+            n_classes=model_args['dataset']['n_classes'],
+            rnn_dropout=model_args['model']['rnn_dropout'],
+            input_dropout=model_args['model']['input_network']['input_layer_dropout'],
+            n_layers=model_args['model']['n_layers'],
+            patch_size=model_args['model']['patch_size'],
+            patch_stride=model_args['model']['patch_stride'],
+            n_heads=4,
+            dim_feedforward=4 * model_args['model']['n_units'],
+        )
+    case 'eegconvtransformer':
+        model = EEGConvTransformerDecoder(
+            neural_dim=model_args['model']['n_input_features'],
+            n_units=model_args['model']['n_units'],
+            n_days=len(model_args['dataset']['sessions']),
+            n_classes=model_args['dataset']['n_classes'],
+            rnn_dropout=model_args['model']['rnn_dropout'],
+            input_dropout=model_args['model']['input_network']['input_layer_dropout'],
+            n_layers=model_args['model']['n_layers'],
+            patch_size=model_args['model']['patch_size'],
+            patch_stride=model_args['model']['patch_stride'],
+            n_heads=4,
+            dim_feedforward=4 * model_args['model']['n_units'],
+            cnn_layers=2,
+        )
+    case _:
+        raise ValueError(f'Invalid model type: {args.model_type}. Must be one of {MODEL_TYPE_CHOICES}.')
+    
 # load model weights
 checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False)
 # rename keys to not start with "module." (happens if model was saved with DataParallel)
